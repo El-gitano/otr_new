@@ -142,3 +142,11 @@ class DSAKey(common.PK):
             x, data = read_mpi(data)
             return cls((y, g, p, q, x), private=True), data
         return cls((y, g, p, q), private=False), data
+
+# TODO: implement
+@common.registerkeytype
+class ECCKey(common.PK):
+    keyType = 0x0001
+
+    def __init__(self):
+        raise NotImplementedError
