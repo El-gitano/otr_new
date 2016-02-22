@@ -32,10 +32,23 @@ class MyContext(potr.context.Context):
 		# here is where you should hook into your app and actually send the message potr gives you
 
 	def setState(self, newstate):
-		# overriding this method is not strictly necessary, but this is a good place to hook state changes for notifying your app, to give your user feedback.
-		# I used this method to set icon state and insert a message into chat history, notifying the user that encryption is or is not enabled.
-		# Don't forget to call the base class method
-		print self.user.getJID() + ": Le context a change: " + str(newstate)
+		p_selfstate = "None"
+		if(self.state == potr.context.STATE_PLAINTEXT):
+			p_selfstate = "STATE_PLAINTEXT"
+		elif(self.state == potr.context.STATE_ENCRYPTED):
+			p_selfstate = "STATE_ENCRYPTED"
+		elif(self.state == potr.context.STATE_FINISHED):
+			p_selfstate = "STATE_FINISHED"
+
+		p_newstate = "None"
+		if(newstate == potr.context.STATE_PLAINTEXT):
+			p_newstate = "STATE_PLAINTEXT"
+		elif(newstate == potr.context.STATE_ENCRYPTED):
+			p_newstate = "STATE_ENCRYPTED"
+		elif(newstate == potr.context.STATE_FINISHED):
+			p_newstate = "STATE_FINISHED"
+
+		print str(self.user.name) + " :" + p_selfstate + " -> " + p_newstate
 		super(MyContext, self).setState(newstate)
 		
 class MyAccount(potr.context.Account):
