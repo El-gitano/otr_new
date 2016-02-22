@@ -1,4 +1,4 @@
-import potr
+import potr, time, os
 
 DEFAULT_POLICY_FLAGS = {
 	'ALLOW_V1':False,
@@ -24,7 +24,7 @@ class MyContext(potr.context.Context):
 			return False
 
 	def inject(self, msg, appdata=None):
-		print "Ok"
+		print msg
 		# this method is called when potr needs to inject a message into the stream.	for instance, upon receiving an initiating stanza, potr will inject the key exchange messages
 		# here is where you should hook into your app and actually send the message potr gives you
 
@@ -51,5 +51,9 @@ class MyAccount(potr.context.Account):
 		pass
 
 account = MyAccount('test')
-context1 = MyContext(account, 'other')
-context1.sendMessage(0, '?OTRv2?')
+account2 = MyAccount('test2')
+context1 = MyContext(account, 'test2')
+context2 = MyContext(account2, 'test')
+
+msg1 = context1.sendMessage(0, 'test')
+context2.receiveMessage(msg1)
