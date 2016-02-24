@@ -42,9 +42,6 @@ MSGTYPE_DATA = 8
 MSGTYPE_ERROR = 9
 MSGTYPE_UNKNOWN = -1
 
-MSGTYPE_V4_ECC_COMMIT = 10
-MSGTYPE_V4_ECC_KEY = 11
-
 MSGFLAGS_IGNORE_UNREADABLE = 1
 
 tlvClasses = {}
@@ -296,24 +293,6 @@ class DataMessage(GenericOTRMessage):
     def getMacedData(self):
         return struct.pack(b'!HB', self.version, self.msgtype) + \
                 self.getPayload('mac', 'oldmacs')
-
-@registermessage
-class EccCommit(GenericOTRMessage):
-    __slots__ = []
-    msgtype = 0x0a # TODO: check this is unique
-    fields = [] # TODO: finish
-
-    def getMacedData(self):
-        return None # TODO: finish
-
-@registermessage
-class EccKey(GenericOTRMessage):
-    __slots__ = []
-    msgtype = 0x0b # TODO: check this is unique
-    fields = [] # TODO: finish
-
-    def getMacedData(self):
-        return None # TODO: finish
 
 @bytesAndStrings
 class TLV(object):

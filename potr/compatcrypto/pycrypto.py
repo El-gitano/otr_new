@@ -1,3 +1,4 @@
+# -*-coding:Utf-8 -*
 #    Copyright 2012 Kjell Braden <afflux@pentabarf.de>
 #
 #    This file is part of the python-potr library.
@@ -15,16 +16,19 @@
 #    You should have received a copy of the GNU Lesser General Public License
 #    along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from Crypto import Cipher
 from Crypto.Hash import SHA256 as _SHA256
 from Crypto.Hash import SHA as _SHA1
 from Crypto.Hash import HMAC as _HMAC
 from Crypto.PublicKey import DSA
 from Crypto.Random import random
+from ecdsa import SigningKey, VerifyingKey, NIST384p
 from numbers import Number
 
 from potr.compatcrypto import common
-from potr.utils import read_mpi, bytes_to_long, long_to_bytes
+from potr.utils import read_mpi, bytes_to_long, long_to_bytes, read_data
 
 def SHA256(data):
     return _SHA256.new(data).digest()
@@ -143,10 +147,62 @@ class DSAKey(common.PK):
             return cls((y, g, p, q, x), private=True), data
         return cls((y, g, p, q), private=False), data
 
-# TODO: implement
 @common.registerkeytype
-class ECCKey(common.PK):
-    keyType = 0x0001
+class ECDSAKey(common.PK):
+	
+	keyType = 0x0001
 
-    def __init__(self):
-        raise NotImplementedError
+	# Creation de la cle de signature
+	# Si key est specifie la cle est cree depuis le parametre, sinon elle est auto-generee
+	def __init__(self, key=None, private=False):
+		
+		self.secretKey = self.verifKey = None
+		
+		# Recuperation
+		if key is not None:
+			if private:
+				self.secretKey = SigningKey.from_string(key, curve=NIST384p)
+				self.verifKey = self.secretKey.get_verifying_key()
+			else:
+				self.verifKey = VerifyingKey.from_string(key, curve=NIST384p)
+		
+		# Auto-generation	
+		else:
+			self.secretKey = SigningKey.generate(curve=NIST384p)
+			self.verifKey = self.secretKey.get_verifying_key()
+			
+	def getPublicPayload(self):
+		return self.verifKey.to_string()
+
+	def getPrivatePayload(self):
+		return self.secretKey.to_string()
+
+	def fingerprint(self):
+		return SHA1(self.getSerializedPublicPayload())
+
+	def sign(self, data):
+		return self.secretKey.sign(data)
+
+	def verify(self, data, sig):
+		return self.verifKey.verify(sig, data)
+
+	def __hash__(self):
+		return bytes_to_long(self.fingerprint())
+
+	def __eq__(self, other):
+		if not isinstance(other, type(self)):
+			return False
+		return self.fingerprint() == other.fingerprint()
+
+	def __ne__(self, other):
+		return not (self == other)
+
+	@classmethod
+	def generate(cls):
+		return cls()
+		
+	@classmethod
+	def parsePayload(cls, data, private=False):
+		serializedKey, data = read_data(data)
+		key = cls(serializedKey, private)
+		return  key, data

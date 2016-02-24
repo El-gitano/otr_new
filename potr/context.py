@@ -86,7 +86,7 @@ class Context(object):
         raise NotImplementedError
 
     def policyOtrEnabled(self):
-        return self.getPolicy('ALLOW_V4') or self.getPolicy('ALLOW_V2') or self.getPolicy('ALLOW_V1')
+        return self.getPolicy('ALLOW_V2') or self.getPolicy('ALLOW_V1')
 
     def discardFragment(self):
         self.fragmentInfo = (0, 0)
@@ -289,8 +289,6 @@ class Context(object):
                     versions.add(1)
                 if self.getPolicy('ALLOW_V2'):
                     versions.add(2)
-                if self.getPolicy('ALLOW_V4'):
-                    versions.add(4)
                 return proto.TaggedPlaintext(msg, versions)
             return msg
         if self.state == STATE_ENCRYPTED:
@@ -388,9 +386,7 @@ class Context(object):
         self.crypto.smpSecret(secret, question=question, appdata=appdata)
 
     def handleQuery(self, message, appdata=None):
-        if 4 in message.versions and self.getPolicy('ALLOW_V4'):
-            self.startECCAKE(appdata=appdata)
-        elif 2 in message.versions and self.getPolicy('ALLOW_V2'):
+        if 2 in message.versions and self.getPolicy('ALLOW_V2'):
             self.authStartV2(appdata=appdata)
         elif 1 in message.versions and self.getPolicy('ALLOW_V1'):
             self.authStartV1(appdata=appdata)
@@ -400,11 +396,6 @@ class Context(object):
 
     def authStartV2(self, appdata=None):
         self.crypto.startAKE(appdata=appdata)
-
-    def authStartV4(self, appdata=None):
-        // TODO
-        self.crypto.startECCAKE(appdata=appdata)
-        raise NotImplementedError()
 
     def parseExplicitQuery(self, message):
         otrTagPos = message.find(proto.OTRTAG)
@@ -548,13 +539,7 @@ class Account(object):
         return self.ctxs[uid]
 
     def getDefaultQueryMessage(self, policy):
-        if policy('ALLOW_V4'):
-            v = '4'
-        elif policy('ALLOW_V2'):
-            v = '2'
-        else:
-            v = ''
-        #v  = '2' if policy('ALLOW_V2') else ''
+        v  = '2' if policy('ALLOW_V2') else ''
         msg = self.defaultQuery.format(versions=v)
         return msg.encode('ascii')
 

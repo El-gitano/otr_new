@@ -1,3 +1,4 @@
+# -*-coding:Utf-8 -*
 #    Copyright 2012 Kjell Braden <afflux@pentabarf.de>
 #
 #    This file is part of the python-potr library.
@@ -21,9 +22,9 @@ from __future__ import unicode_literals
 import logging
 import struct
 
-from potr.utils import human_hash, bytes_to_long, unpack, pack_mpi
+from potr.utils import human_hash, bytes_to_long, unpack, pack_mpi, pack_data
 
-DEFAULT_KEYTYPE = 0x0000
+DEFAULT_KEYTYPE = 0x0001
 pkTypes = {}
 def registerkeytype(cls):
     if cls.keyType is None:
@@ -57,10 +58,16 @@ class PK(object):
                 + self.getSerializedPublicPayload()
 
     def getSerializedPublicPayload(self):
-        buf = b''
-        for x in self.getPublicPayload():
-            buf += pack_mpi(x)
-        return buf
+    	
+    	# Clé ECDSA
+    	if self.keyType == 0x01:
+    		return pack_data(self.getPublicPayload())
+    	
+    	else:
+		    buf = b''
+		    for x in self.getPublicPayload():
+		        buf += pack_mpi(x)
+		    return buf
 
     def getPublicPayload(self):
         raise NotImplementedError

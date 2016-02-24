@@ -2,6 +2,7 @@
 # -*-coding:Utf-8 -*
 
 import potr, socket, select, sys
+import logging
 
 MMS = 4096
 
@@ -149,12 +150,22 @@ if __name__ == "__main__":
 	if(len(sys.argv) < 3) :
 		print 'Usage : python chat3.py hostname port'
 		sys.exit()
-	 
+                    
 	host = sys.argv[1]
 	port = int(sys.argv[2])
 	
 	if host.lower() == 'listen':
+	
+		logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s %(message)s',
+                    filename='./logsServer.log',
+                    filemode='w')
 		Server(port).start()
 	
 	else:
+		
+		logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s %(message)s',
+                    filename='./logsClient.log',
+                    filemode='w')
 		Client(host, port).start()
