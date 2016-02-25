@@ -197,10 +197,14 @@ class ECDH:
 		self.pub = self.curve.scalar_mult(self.priv, self.curve.g)
 
 	def get_serialized_pubKey(self):
-		return pack_mpi(self.pub[0])+pack_mpi(self.pub[1])
+		return self.serialize_pubKey(self.pub)
 	
 	def get_serialized_privKey(self):
 		return pack_mpi(self.priv)
+	
+	@classmethod
+	def serialize_pubKey(cls, pubKey):
+		return pack_mpi(pubKey[0])+pack_mpi(pubKey[1])
 	
 	@classmethod
 	def parse_serialized_privKey(cls, serializedPrivKey):
@@ -215,7 +219,9 @@ class ECDH:
 		return (a, b)
 	
 	def get_shared_secret(self, pubKey):
-		return self.curve.scalar_mult(self.priv, pubKey)[0]
+		result = self.curve.scalar_mult(self.priv, pubKey)[0]
+		print "Secret commun : {}".format(result)
+		return result
 
 class DH(object):
 
@@ -248,12 +254,11 @@ class DHSession(object):
 
 	@classmethod
 	def create(cls, dh, y):
-		
-		# TOCHANGE
-		s = pow(y, dh.priv, DH_MODULUS)
+
+		s = dh.get_shared_secret(y)
 		sb = pack_mpi(s)
 
-		if dh.pub > y:
+		if dh.pub[0] > y[0]:
 			sendbyte = b'\1'
 			rcvbyte = b'\2'
 		else:
@@ -304,13 +309,13 @@ class CryptEngine(object):
 		self.revealMacs(ours=True)
 		self.ourOldDHKey = self.ourDHKey
 		self.sessionkeys[1] = self.sessionkeys[0].copy()
-		self.ourDHKey = DH()
+		self.ourDHKey = ECDH()
 		self.ourKeyid += 1
 
 		self.sessionkeys[0][0] = None if self.theirY is None else \
-				DHSession.create(self.ourDHKey, self.theirY) # TOCHANGE
+				DHSession.create(self.ourDHKey, self.theirY)
 		self.sessionkeys[0][1] = None if self.theirOldY is None else \
-				DHSession.create(self.ourDHKey, self.theirOldY) # TOCHANGE
+				DHSession.create(self.ourDHKey, self.theirOldY)
 
 		logger.debug('{0}: Refreshing ourkey to {1} {2}'.format(
 				self.ctx.user.name, self.ourKeyid, self.sessionkeys))
@@ -323,8 +328,8 @@ class CryptEngine(object):
 		self.theirY = new_y
 		self.theirKeyid += 1
 
-		self.sessionkeys[0][0] = DHSession.create(self.ourDHKey, self.theirY) # TOCHANGE
-		self.sessionkeys[1][0] = DHSession.create(self.ourOldDHKey, self.theirY) # TOCHANGE
+		self.sessionkeys[0][0] = DHSession.create(self.ourDHKey, self.theirY)
+		self.sessionkeys[1][0] = DHSession.create(self.ourOldDHKey, self.theirY)
 
 		logger.debug('{0}: Refreshing theirkey to {1} {2}'.format(
 				self.ctx.user.name, self.theirKeyid, self.sessionkeys))
@@ -369,7 +374,7 @@ class CryptEngine(object):
 		if msg.rkeyid == self.ourKeyid:
 			self.rotateDHKeys()
 		if msg.skeyid == self.theirKeyid:
-			self.rotateYKeys(bytes_to_long(msg.dhy))
+			self.rotateYKeys(ECDH.parse_serialized_pubKey(msg.dhy))
 
 		return plaintext, tlvs
 
@@ -411,7 +416,7 @@ class CryptEngine(object):
 		encmsg = AESCTR(sess.sendenc, sess.sendctr).encrypt(plainBuf)
 
 		msg = proto.DataMessage(flags, self.ourKeyid-1, self.theirKeyid,
-				long_to_bytes(self.ourDHKey.pub), sess.sendctr.byteprefix(),
+				self.ourDHKey.get_serialized_pubKey(), sess.sendctr.byteprefix(),
 				encmsg, b'', b''.join(self.savedMacKeys))
 
 		self.savedMacKeys = []
@@ -466,7 +471,6 @@ class CryptEngine(object):
 
 	def goEncrypted(self, ake):
 		
-		# TOCHANGE
 		if ake.dh.pub == ake.gy:
 			logger.warning('We are receiving our own messages')
 			raise InvalidParameterError
@@ -481,7 +485,6 @@ class CryptEngine(object):
 		self.theirOldY = None
 		self.extraKey = ake.extraKey
 
-		# TOCHANGE
 		if self.ourKeyid != ake.ourKeyid + 1 or self.ourOldDHKey != ake.dh.pub:
 			self.ourDHKey = ake.dh
 			self.sessionkeys[0][0] = DHSession.create(self.ourDHKey, self.theirY)
@@ -515,7 +518,7 @@ class AuthKeyExchange(object):
 		self.mac_m2p = None
 		self.sessionId = None
 		self.sessionIdHalf = False
-		self.dh = DH() # TOCHANGE
+		self.dh = ECDH()
 		self.onSuccess = onSuccess
 		self.gy = None
 		self.extraKey = None
@@ -525,7 +528,7 @@ class AuthKeyExchange(object):
 	
 		self.r = long_to_bytes(random.getrandbits(128), 16)
 
-		gxmpi = pack_mpi(self.dh.pub) # TOCHANGE
+		gxmpi = self.dh.get_serialized_pubKey()
 
 		self.hashgx = SHA256(gxmpi)
 		self.encgx = AESCTR(self.r).encrypt(gxmpi)
@@ -539,18 +542,13 @@ class AuthKeyExchange(object):
 		self.hashgx = msg.hashgx
 
 		self.state = STATE_AWAITING_REVEALSIG
-		return proto.DHKey(long_to_bytes(self.dh.pub)) # TOCHANGE
+		return proto.DHKey(self.dh.get_serialized_pubKey())
 
 	# Une fois g^y reçu, on calcule Xb
 	def handleDHKey(self, msg):
 	
 		if self.state == STATE_AWAITING_DHKEY:
-			self.gy = bytes_to_long(msg.gy) # TOCHANGE
-
-			# check 2 <= g**y <= p-2
-			if not check_group(self.gy): # TOCHANGE
-				logger.error('Invalid g**y received: %r', self.gy)
-				return
+			self.gy = ECDH.parse_serialized_pubKey(msg.gy)
 
 			self.createAuthKeys()
 
@@ -566,7 +564,7 @@ class AuthKeyExchange(object):
 
 		elif self.state == STATE_AWAITING_SIG:
 			logger.info('received DHKey while not awaiting DHKEY')
-			if msg.gy == self.gy: # TOCHANGE
+			if msg.gy == self.gy: # TOCHANGE (Inutile pour le moment)
 				logger.info('resending revealsig')
 				return self.lastmsg
 		else:
@@ -585,7 +583,7 @@ class AuthKeyExchange(object):
 					self.r, self.hashgx, SHA256(gxmpi), gxmpi)
 			raise InvalidParameterError
 
-		self.gy = read_mpi(gxmpi)[0] # TOCHANGE
+		self.gy = ECDH.parse_serialized_pubKey(gxmpi)
 		self.createAuthKeys()
 
 		if msg.mac != SHA256HMAC160(self.mac_m2, msg.getMacedData()):
@@ -627,8 +625,8 @@ class AuthKeyExchange(object):
 		self.state = STATE_NONE
 
 	def createAuthKeys(self):
-		# TOCHANGE
-		s = pow(self.gy, self.dh.priv, DH_MODULUS)
+		
+		s = self.dh.get_shared_secret(self.gy)
 		sbyte = pack_mpi(s)
 		self.sessionId = SHA256(b'\x00' + sbyte)[:8]
 		enc = SHA256(b'\x01' + sbyte)
@@ -644,8 +642,8 @@ class AuthKeyExchange(object):
 	def calculatePubkeyAuth(self, key, mackey):
 
 		pubkey = self.privkey.serializePublicKey()
-		buf = pack_mpi(self.dh.pub) # TOCHANGE
-		buf += pack_mpi(self.gy) # TOCHANGE
+		buf = self.dh.get_serialized_pubKey()
+		buf += ECDH.serialize_pubKey(self.gy)
 		buf += pubkey
 		buf += struct.pack(b'!I', self.ourKeyid)
 		MBsigned = self.privkey.sign(SHA256HMAC(mackey, buf))
@@ -677,8 +675,8 @@ class AuthKeyExchange(object):
 			
 		logging.debug("Signature reçue {}".format( ':'.join(x.encode('hex') for x in auth) ))
 
-		authbuf = pack_mpi(self.gy) # TOCHANGE
-		authbuf += pack_mpi(self.dh.pub) # TOCHANGE
+		authbuf = ECDH.serialize_pubKey(self.gy)
+		authbuf += self.dh.get_serialized_pubKey()
 		authbuf += self.theirPubkey.serializePublicKey()
 		authbuf += struct.pack(b'!I', receivedKeyid)
 
