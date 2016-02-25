@@ -19,9 +19,16 @@
 import logging
 
 from Crypto import Cipher
+
+# Ancien
 from Crypto.Hash import SHA256 as _SHA256
 from Crypto.Hash import SHA as _SHA1
-from Crypto.Hash import HMAC as _HMAC
+
+# Nouveau
+import sha3
+import hashlib
+import hmac as _HMAC
+
 from Crypto.PublicKey import DSA
 from Crypto.Random import random
 from ecdsa import SigningKey, VerifyingKey, NIST384p
@@ -30,23 +37,20 @@ from numbers import Number
 from potr.compatcrypto import common
 from potr.utils import read_mpi, bytes_to_long, long_to_bytes, read_data
 
-def SHA256(data):
-    return _SHA256.new(data).digest()
-
-def SHA1(data):
-    return _SHA1.new(data).digest()
+def SHA3(data):
+	return hashlib.sha3_256(data).digest()
 
 def HMAC(key, data, mod):
     return _HMAC.new(key, msg=data, digestmod=mod).digest()
-
-def SHA1HMAC(key, data):
-    return HMAC(key, data, _SHA1)
-
+    
 def SHA256HMAC(key, data):
     return HMAC(key, data, _SHA256)
 
 def SHA256HMAC160(key, data):
     return SHA256HMAC(key, data)[:20]
+
+def SHA256(data):
+    return _SHA256.new(data).digest()
 
 def AESCTR(key, counter=0):
     if isinstance(counter, Number):
@@ -178,7 +182,7 @@ class ECDSAKey(common.PK):
 		return self.secretKey.to_string()
 
 	def fingerprint(self):
-		return SHA1(self.getSerializedPublicPayload())
+		return SHA3(self.getSerializedPublicPayload())
 
 	def sign(self, data):
 		return self.secretKey.sign(data)
