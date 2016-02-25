@@ -46,10 +46,179 @@ SM_ORDER = (DH_MODULUS - 1) // 2
 
 def check_group(n):
 	return 2 <= n <= DH_MODULUS_2
+	
 def check_exp(n):
 	return 1 <= n < SM_ORDER
 
+# Définit une courbe elliptique
+class EllipticCurve:
+
+	def __init__(self, nom, p, a, b, g, n, h):
+	
+		self.nom = nom
+		self.p = p
+		self.a = a
+		self.b = b
+		self.g = g
+		self.n = n
+		self.h = h
+
+	def is_on_curve(self, point):
+	
+		"""Returns True if the given point lies on the elliptic curve."""
+		if point is None:
+		    # None represents the point at infinity.
+		    return True
+
+		x, y = point
+
+		return (y * y - x * x * x - self.a * x - self.b) % self.p == 0	
+	
+	def point_neg(self, point):
+	
+		"""Returns -point."""
+		assert self.is_on_curve(point)
+
+		if point is None:
+		    # -0 = 0
+		    return None
+
+		x, y = point
+		result = (x, -y % self.curve.p)
+
+		assert self.is_on_curve(result)
+
+		return result
+		
+	def point_add(self, point1, point2):
+		"""Returns the result of point1 + point2 according to the group law."""
+		assert self.is_on_curve(point1)
+		assert self.is_on_curve(point2)
+
+		if point1 is None:
+		    # 0 + point2 = point2
+		    return point2
+		if point2 is None:
+		    # point1 + 0 = point1
+		    return point1
+
+		x1, y1 = point1
+		x2, y2 = point2
+
+		if x1 == x2 and y1 != y2:
+		    # point1 + (-point1) = 0
+		    return None
+
+		if x1 == x2:
+		    # This is the case point1 == point2.
+		    m = (3 * x1 * x1 + self.a) * self.inverse_mod(2 * y1, self.p)
+		else:
+		    # This is the case point1 != point2.
+		    m = (y1 - y2) * self.inverse_mod(x1 - x2, self.p)
+
+		x3 = m * m - x1 - x2
+		y3 = y1 + m * (x3 - x1)
+		result = (x3 % self.p,
+		          -y3 % self.p)
+
+		assert self.is_on_curve(result)
+
+		return result
+
+	def scalar_mult(self, k, point):
+		"""Returns k * point computed using the double and point_add algorithm."""
+		assert self.is_on_curve(point)
+
+		if k % self.n == 0 or point is None:
+		    return None
+
+		if k < 0:
+		    # k * point = -k * (-point)
+		    return self.scalar_mult(-k, self.point_neg(point))
+
+		result = None
+		addend = point
+
+		while k:
+		    if k & 1:
+		        # Add.
+		        result = self.point_add(result, addend)
+
+		    # Double.
+		    addend = self.point_add(addend, addend)
+
+		    k >>= 1
+
+		assert self.is_on_curve(result)
+
+		return result
+	
+	def inverse_mod(self, k, p):
+		"""
+		Returns the inverse of k modulo p.
+
+		This function returns the only integer x such that (x * k) % p == 1.
+
+		k must be non-zero and p must be a prime.
+		"""
+		if k == 0:
+		    raise ZeroDivisionError('division by zero')
+
+		if k < 0:
+		    # k ** -1 = p - (-k) ** -1  (mod p)
+		    return p - self.inverse_mod(-k, p)
+
+		# Extended Euclidean algorithm.
+		s, old_s = 0, 1
+		t, old_t = 1, 0
+		r, old_r = p, k
+
+		while r != 0:
+		    quotient = old_r // r
+		    old_r, r = r, old_r - quotient * r
+		    old_s, s = s, old_s - quotient * s
+		    old_t, t = t, old_t - quotient * t
+
+		gcd, x, y = old_r, old_s, old_t
+
+		assert gcd == 1
+		assert (k * x) % p == 1
+
+		return x % p
+
+# Définit les variables impliquées dans une échange ECDH				
+class ECDH:
+
+	def __init__(self):
+		
+		self.curve = EllipticCurve('secp256k1', p=0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f, a=0, b=7,	g=(0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798, 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8), n=0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141, h=1)
+
+		self.priv = random.randrange(1, self.curve.n)
+		self.pub = self.curve.scalar_mult(self.priv, self.curve.g)
+
+	def get_serialized_pubKey(self):
+		return pack_mpi(self.pub[0])+pack_mpi(self.pub[1])
+	
+	def get_serialized_privKey(self):
+		return pack_mpi(self.priv)
+	
+	@classmethod
+	def parse_serialized_privKey(cls, serializedPrivKey):
+		return read_mpi(serializedPrivKey)[0]
+	
+	@classmethod
+	def parse_serialized_pubKey(cls, serializedPubKey):
+	
+		a, data = read_mpi(serializedPubKey)
+		b = read_mpi(data)[0]
+		
+		return (a, b)
+	
+	def get_shared_secret(self, pubKey):
+		return self.curve.scalar_mult(self.priv, pubKey)[0]
+
 class DH(object):
+
 	@classmethod
 	def set_params(cls, prime, gen):
 		cls.prime = prime
@@ -79,6 +248,8 @@ class DHSession(object):
 
 	@classmethod
 	def create(cls, dh, y):
+		
+		# TOCHANGE
 		s = pow(y, dh.priv, DH_MODULUS)
 		sb = pack_mpi(s)
 
@@ -137,9 +308,9 @@ class CryptEngine(object):
 		self.ourKeyid += 1
 
 		self.sessionkeys[0][0] = None if self.theirY is None else \
-				DHSession.create(self.ourDHKey, self.theirY)
+				DHSession.create(self.ourDHKey, self.theirY) # TOCHANGE
 		self.sessionkeys[0][1] = None if self.theirOldY is None else \
-				DHSession.create(self.ourDHKey, self.theirOldY)
+				DHSession.create(self.ourDHKey, self.theirOldY) # TOCHANGE
 
 		logger.debug('{0}: Refreshing ourkey to {1} {2}'.format(
 				self.ctx.user.name, self.ourKeyid, self.sessionkeys))
@@ -152,8 +323,8 @@ class CryptEngine(object):
 		self.theirY = new_y
 		self.theirKeyid += 1
 
-		self.sessionkeys[0][0] = DHSession.create(self.ourDHKey, self.theirY)
-		self.sessionkeys[1][0] = DHSession.create(self.ourOldDHKey, self.theirY)
+		self.sessionkeys[0][0] = DHSession.create(self.ourDHKey, self.theirY) # TOCHANGE
+		self.sessionkeys[1][0] = DHSession.create(self.ourOldDHKey, self.theirY) # TOCHANGE
 
 		logger.debug('{0}: Refreshing theirkey to {1} {2}'.format(
 				self.ctx.user.name, self.theirKeyid, self.sessionkeys))
@@ -294,13 +465,14 @@ class CryptEngine(object):
 			self.ctx.sendInternal(outMsg, appdata=appdata)
 
 	def goEncrypted(self, ake):
+		
+		# TOCHANGE
 		if ake.dh.pub == ake.gy:
 			logger.warning('We are receiving our own messages')
 			raise InvalidParameterError
 
-		# TODO handle new fingerprint
 		self.theirPubkey = ake.theirPubkey
-
+		
 		self.sessionId = ake.sessionId
 		self.sessionIdHalf = ake.sessionIdHalf
 		self.theirKeyid = ake.theirKeyid
@@ -309,6 +481,7 @@ class CryptEngine(object):
 		self.theirOldY = None
 		self.extraKey = ake.extraKey
 
+		# TOCHANGE
 		if self.ourKeyid != ake.ourKeyid + 1 or self.ourOldDHKey != ake.dh.pub:
 			self.ourDHKey = ake.dh
 			self.sessionkeys[0][0] = DHSession.create(self.ourDHKey, self.theirY)
@@ -324,6 +497,7 @@ class CryptEngine(object):
 		self.smp = None
 
 class AuthKeyExchange(object):
+
 	def __init__(self, privkey, onSuccess):
 		self.privkey = privkey
 		self.state = STATE_NONE
@@ -341,16 +515,17 @@ class AuthKeyExchange(object):
 		self.mac_m2p = None
 		self.sessionId = None
 		self.sessionIdHalf = False
-		self.dh = DH()
+		self.dh = DH() # TOCHANGE
 		self.onSuccess = onSuccess
 		self.gy = None
 		self.extraKey = None
 		self.lastmsg = None
 
 	def startAKE(self):
+	
 		self.r = long_to_bytes(random.getrandbits(128), 16)
 
-		gxmpi = pack_mpi(self.dh.pub)
+		gxmpi = pack_mpi(self.dh.pub) # TOCHANGE
 
 		self.hashgx = SHA256(gxmpi)
 		self.encgx = AESCTR(self.r).encrypt(gxmpi)
@@ -364,16 +539,16 @@ class AuthKeyExchange(object):
 		self.hashgx = msg.hashgx
 
 		self.state = STATE_AWAITING_REVEALSIG
-		return proto.DHKey(long_to_bytes(self.dh.pub))
+		return proto.DHKey(long_to_bytes(self.dh.pub)) # TOCHANGE
 
 	# Une fois g^y reçu, on calcule Xb
 	def handleDHKey(self, msg):
 	
 		if self.state == STATE_AWAITING_DHKEY:
-			self.gy = bytes_to_long(msg.gy)
+			self.gy = bytes_to_long(msg.gy) # TOCHANGE
 
 			# check 2 <= g**y <= p-2
-			if not check_group(self.gy):
+			if not check_group(self.gy): # TOCHANGE
 				logger.error('Invalid g**y received: %r', self.gy)
 				return
 
@@ -391,7 +566,7 @@ class AuthKeyExchange(object):
 
 		elif self.state == STATE_AWAITING_SIG:
 			logger.info('received DHKey while not awaiting DHKEY')
-			if msg.gy == self.gy:
+			if msg.gy == self.gy: # TOCHANGE
 				logger.info('resending revealsig')
 				return self.lastmsg
 		else:
@@ -410,7 +585,7 @@ class AuthKeyExchange(object):
 					self.r, self.hashgx, SHA256(gxmpi), gxmpi)
 			raise InvalidParameterError
 
-		self.gy = read_mpi(gxmpi)[0]
+		self.gy = read_mpi(gxmpi)[0] # TOCHANGE
 		self.createAuthKeys()
 
 		if msg.mac != SHA256HMAC160(self.mac_m2, msg.getMacedData()):
@@ -452,6 +627,7 @@ class AuthKeyExchange(object):
 		self.state = STATE_NONE
 
 	def createAuthKeys(self):
+		# TOCHANGE
 		s = pow(self.gy, self.dh.priv, DH_MODULUS)
 		sbyte = pack_mpi(s)
 		self.sessionId = SHA256(b'\x00' + sbyte)[:8]
@@ -464,12 +640,12 @@ class AuthKeyExchange(object):
 		self.mac_m2p = SHA256(b'\x05' + sbyte)
 		self.extraKey = SHA256(b'\xff' + sbyte)
 
-	# 
+	# Génération de AES(Xb) 
 	def calculatePubkeyAuth(self, key, mackey):
 
-		pubkey = self.privkey.serializePublicKey() # Changer cette méthode pour notre clé
-		buf = pack_mpi(self.dh.pub)
-		buf += pack_mpi(self.gy)
+		pubkey = self.privkey.serializePublicKey()
+		buf = pack_mpi(self.dh.pub) # TOCHANGE
+		buf += pack_mpi(self.gy) # TOCHANGE
 		buf += pubkey
 		buf += struct.pack(b'!I', self.ourKeyid)
 		MBsigned = self.privkey.sign(SHA256HMAC(mackey, buf))
@@ -484,6 +660,7 @@ class AuthKeyExchange(object):
 		
 		return AESCTR(key).encrypt(buf)
 
+	# Vérification de AES(Xb) 
 	def checkPubkeyAuth(self, key, mackey, encsig):
 		
 		auth = AESCTR(key).decrypt(encsig)
@@ -500,8 +677,8 @@ class AuthKeyExchange(object):
 			
 		logging.debug("Signature reçue {}".format( ':'.join(x.encode('hex') for x in auth) ))
 
-		authbuf = pack_mpi(self.gy)
-		authbuf += pack_mpi(self.dh.pub)
+		authbuf = pack_mpi(self.gy) # TOCHANGE
+		authbuf += pack_mpi(self.dh.pub) # TOCHANGE
 		authbuf += self.theirPubkey.serializePublicKey()
 		authbuf += struct.pack(b'!I', receivedKeyid)
 
