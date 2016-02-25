@@ -257,7 +257,6 @@ class DHSession(object):
 	def create(cls, dh, y):
 
 		s = dh.get_shared_secret(y)
-		print s
 		sb = pack_mpi(s)
 
 		if dh.pub[0] > y[0]:
