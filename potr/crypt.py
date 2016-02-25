@@ -220,9 +220,9 @@ class ECDH:
 	
 	def get_shared_secret(self, pubKey):
 		result = self.curve.scalar_mult(self.priv, pubKey)[0]
-		print "Secret commun : {}".format(result)
 		return result
 
+'''
 class DH(object):
 
 	@classmethod
@@ -235,6 +235,7 @@ class DH(object):
 		self.pub = pow(self.gen, self.priv, self.prime)
 
 DH.set_params(DH_MODULUS, DH_GENERATOR)
+'''
 
 class DHSession(object):
 	def __init__(self, sendenc, sendmac, rcvenc, rcvmac):

@@ -28,7 +28,7 @@ class MyContext(potr.context.Context):
 		return True # TODO
 
 	def inject(self, msg, appdata=None):
-		print "From {} to {} : {}".format(self.user.jid, self.peer.jid, msg)
+		#print "From {} to {} : {}".format(self.user.jid, self.peer.jid, msg)
 		self.socket.send(msg)
 
 	def setState(self, newstate):
@@ -48,7 +48,7 @@ class MyContext(potr.context.Context):
 		elif(newstate == potr.context.STATE_FINISHED):
 			p_newstate = "STATE_FINISHED"
 
-		print "{} : {} -> {}".format(self.user.name, p_selfstate, p_newstate)
+		#print "{} : {} -> {}".format(self.user.name, p_selfstate, p_newstate)
 		super(MyContext, self).setState(newstate)
 
 class Chatter(object):
