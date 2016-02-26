@@ -37,7 +37,7 @@ from numbers import Number
 from potr.compatcrypto import common
 from potr.utils import read_mpi, bytes_to_long, long_to_bytes, read_data
 
-def SHA3(data):
+def HASH(data):
 	return hashlib.sha3_256(data).digest()
 
 def HMAC(key, data, mod):
@@ -182,7 +182,7 @@ class ECDSAKey(common.PK):
 		return self.secretKey.to_string()
 
 	def fingerprint(self):
-		return SHA3(self.getSerializedPublicPayload())
+		return HASH(self.getSerializedPublicPayload())
 
 	def sign(self, data):
 		return self.secretKey.sign(data)

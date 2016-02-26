@@ -23,7 +23,7 @@ import logging
 import struct
 
 
-from potr.compatcrypto import SHA3, SHA256HMAC, SHA256HMAC160 \
+from potr.compatcrypto import HASH, SHA256HMAC, SHA256HMAC160 \
 		, Counter, AESCTR, PK, random
 from potr.utils import bytes_to_long, long_to_bytes, pack_mpi, read_mpi
 from potr import proto
@@ -266,10 +266,10 @@ class DHSession(object):
 			sendbyte = b'\2'
 			rcvbyte = b'\1'
 
-		sendenc = SHA3(sendbyte + sb)[:16]
-		sendmac = SHA3(sendenc)
-		rcvenc = SHA3(rcvbyte + sb)[:16]
-		rcvmac = SHA3(rcvenc)
+		sendenc = HASH(sendbyte + sb)[:16]
+		sendmac = HASH(sendenc)
+		rcvenc = HASH(rcvbyte + sb)[:16]
+		rcvmac = HASH(rcvenc)
 		return cls(sendenc, sendmac, rcvenc, rcvmac)
 
 class CryptEngine(object):
@@ -531,7 +531,7 @@ class AuthKeyExchange(object):
 
 		gxmpi = self.dh.get_serialized_pubKey()
 
-		self.hashgx = SHA3(gxmpi)
+		self.hashgx = HASH(gxmpi)
 		self.encgx = AESCTR(self.r).encrypt(gxmpi)
 
 		self.state = STATE_AWAITING_DHKEY
@@ -578,10 +578,10 @@ class AuthKeyExchange(object):
 
 		self.r = msg.rkey
 		gxmpi = AESCTR(self.r).decrypt(self.encgx)
-		if SHA3(gxmpi) != self.hashgx:
+		if HASH(gxmpi) != self.hashgx:
 			logger.error('Hashes don\'t match')
 			logger.info('r=%r, hashgx=%r, computed hash=%r, gxmpi=%r',
-					self.r, self.hashgx, SHA3(gxmpi), gxmpi)
+					self.r, self.hashgx, HASH(gxmpi), gxmpi)
 			raise InvalidParameterError
 
 		self.gy = ECDH.parse_serialized_pubKey(gxmpi)
@@ -629,15 +629,15 @@ class AuthKeyExchange(object):
 		
 		s = self.dh.get_shared_secret(self.gy)
 		sbyte = pack_mpi(s)
-		self.sessionId = SHA3(b'\x00' + sbyte)[:8]
-		enc = SHA3(b'\x01' + sbyte)
+		self.sessionId = HASH(b'\x00' + sbyte)[:8]
+		enc = HASH(b'\x01' + sbyte)
 		self.enc_c = enc[:16]
 		self.enc_cp = enc[16:]
-		self.mac_m1 = SHA3(b'\x02' + sbyte)
-		self.mac_m2 = SHA3(b'\x03' + sbyte)
-		self.mac_m1p = SHA3(b'\x04' + sbyte)
-		self.mac_m2p = SHA3(b'\x05' + sbyte)
-		self.extraKey = SHA3(b'\xff' + sbyte)
+		self.mac_m1 = HASH(b'\x02' + sbyte)
+		self.mac_m2 = HASH(b'\x03' + sbyte)
+		self.mac_m1p = HASH(b'\x04' + sbyte)
+		self.mac_m2p = HASH(b'\x05' + sbyte)
+		self.extraKey = HASH(b'\xff' + sbyte)
 
 	# Génération de AES(Xb) 
 	def calculatePubkeyAuth(self, key, mackey):
@@ -875,7 +875,7 @@ class SMPHandler:
 		ourFP = self.crypto.ctx.user.getPrivkey().fingerprint()
 		if self.state == 1:
 			# first secret -> SMP1TLV
-			combSecret = SHA3(b'\1' + ourFP +
+			combSecret = HASH(b'\1' + ourFP +
 					self.crypto.theirPubkey.fingerprint() +
 					self.crypto.sessionId + secret)
 
@@ -897,7 +897,7 @@ class SMPHandler:
 				self.sendTLV(proto.SMP1QTLV(question, msg), appdata=appdata)
 		if self.state == 0:
 			# response secret -> SMP2TLV
-			combSecret = SHA3(b'\1' + self.crypto.theirPubkey.fingerprint() +
+			combSecret = HASH(b'\1' + self.crypto.theirPubkey.fingerprint() +
 					ourFP + self.crypto.sessionId + secret)
 
 			self.secret = bytes_to_long(combSecret)
@@ -929,7 +929,7 @@ class SMPHandler:
 				* pow(self.g2, r2, DH_MODULUS) % DH_MODULUS
 		temp1 = pow(self.g3, r1, DH_MODULUS)
 
-		cb = SHA3(struct.pack(b'B', v) + pack_mpi(temp1) + pack_mpi(temp2))
+		cb = HASH(struct.pack(b'B', v) + pack_mpi(temp1) + pack_mpi(temp2))
 		c = bytes_to_long(cb)
 
 		temp1 = r * c % SM_ORDER
@@ -948,7 +948,7 @@ class SMPHandler:
 				* pow(self.g2, d2, DH_MODULUS) \
 				* pow(q, c, DH_MODULUS) % DH_MODULUS
 
-		cprime = SHA3(struct.pack(b'B', v) + pack_mpi(temp1) + pack_mpi(temp2))
+		cprime = HASH(struct.pack(b'B', v) + pack_mpi(temp1) + pack_mpi(temp2))
 
 		return long_to_bytes(c, 32) == cprime
 
@@ -957,7 +957,7 @@ class SMPHandler:
 		temp1 = pow(self.g1, r, DH_MODULUS)
 		temp2 = pow(self.qab, r, DH_MODULUS)
 
-		cb = SHA3(struct.pack(b'B', v) + pack_mpi(temp1) + pack_mpi(temp2))
+		cb = HASH(struct.pack(b'B', v) + pack_mpi(temp1) + pack_mpi(temp2))
 		c = bytes_to_long(cb)
 		temp1 = self.x3 * c % SM_ORDER
 		d = (r - temp1) % SM_ORDER
@@ -971,12 +971,12 @@ class SMPHandler:
 		temp2 = pow(self.qab, d, DH_MODULUS) \
 				* pow(r, c, DH_MODULUS) % DH_MODULUS
 
-		cprime = SHA3(struct.pack(b'B', v) + pack_mpi(temp1) + pack_mpi(temp2))
+		cprime = HASH(struct.pack(b'B', v) + pack_mpi(temp1) + pack_mpi(temp2))
 		return long_to_bytes(c, 32) == cprime
 
 def proof_known_log(g, x, v):
 	r = random.randrange(2, DH_MAX)
-	c = bytes_to_long(SHA3(struct.pack(b'B', v) + pack_mpi(pow(g, r, DH_MODULUS))))
+	c = bytes_to_long(HASH(struct.pack(b'B', v) + pack_mpi(pow(g, r, DH_MODULUS))))
 	temp = x * c % SM_ORDER
 	return c, (r-temp) % SM_ORDER
 
@@ -984,7 +984,7 @@ def check_known_log(c, d, g, x, v):
 	gd = pow(g, d, DH_MODULUS)
 	xc = pow(x, c, DH_MODULUS)
 	gdxc = gd * xc % DH_MODULUS
-	return SHA3(struct.pack(b'B', v) + pack_mpi(gdxc)) == long_to_bytes(c, 32)
+	return HASH(struct.pack(b'B', v) + pack_mpi(gdxc)) == long_to_bytes(c, 32)
 
 def invMod(n):
 	return pow(n, DH_MODULUS_2, DH_MODULUS)
