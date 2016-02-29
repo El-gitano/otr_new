@@ -20,16 +20,12 @@ import logging
 
 from Crypto import Cipher
 
-# Ancien
-from Crypto.Hash import SHA256 as _SHA256
-from Crypto.Hash import SHA as _SHA1
-
 # Nouveau
 import sha3
 import hashlib
 import hmac as _HMAC
+from Crypto.Hash import SHA512 as _SHA512
 
-from Crypto.PublicKey import DSA
 from Crypto.Random import random
 from ecdsa import SigningKey, VerifyingKey, NIST384p
 from numbers import Number
@@ -40,17 +36,14 @@ from potr.utils import read_mpi, bytes_to_long, long_to_bytes, read_data
 def HASH(data):
 	return hashlib.sha3_256(data).digest()
 
-def HMAC(key, data, mod):
-    return _HMAC.new(key, msg=data, digestmod=mod).digest()
-    
-def SHA256HMAC(key, data):
-    return HMAC(key, data, _SHA256)
+def HMAC(key, data):
+	return SHA512HMAC(key, data)
 
-def SHA256HMAC160(key, data):
-    return SHA256HMAC(key, data)[:20]
+def HMAC160(key, data):
+	return SHA512HMAC(key, data)[:20]
 
-def SHA256(data):
-    return _SHA256.new(data).digest()
+def SHA512HMAC(key, data):
+	return _HMAC.new(key, msg=data, digestmod=_SHA512).digest()
 
 def AESCTR(key, counter=0):
     if isinstance(counter, Number):
@@ -83,73 +76,6 @@ class Counter(object):
         bytesuffix = long_to_bytes(self.val, 8)
         self.val += 1
         return self.byteprefix() + bytesuffix
-
-@common.registerkeytype
-class DSAKey(common.PK):
-    keyType = 0x0000
-
-    def __init__(self, key=None, private=False):
-        self.priv = self.pub = None
-
-        if not isinstance(key, tuple):
-            raise TypeError('4/5-tuple required for key')
-
-        if len(key) == 5 and private:
-            self.priv = DSA.construct(key)
-            self.pub = self.priv.publickey()
-        elif len(key) == 4 and not private:
-            self.pub = DSA.construct(key)
-        else:
-            raise TypeError('wrong number of arguments for ' \
-                    'private={0!r}: got {1} '
-                    .format(private, len(key)))
-
-    def getPublicPayload(self):
-        return (self.pub.p, self.pub.q, self.pub.g, self.pub.y)
-
-    def getPrivatePayload(self):
-        return (self.priv.p, self.priv.q, self.priv.g, self.priv.y, self.priv.x)
-
-    def fingerprint(self):
-        return SHA1(self.getSerializedPublicPayload())
-
-    def sign(self, data):
-        # 2 <= K <= q
-        K = random.randrange(2, self.priv.q)
-        r, s = self.priv.sign(data, K)
-        return long_to_bytes(r, 20) + long_to_bytes(s, 20)
-
-    def verify(self, data, sig):
-        r, s = bytes_to_long(sig[:20]), bytes_to_long(sig[20:])
-        return self.pub.verify(data, (r, s))
-
-    def __hash__(self):
-        return bytes_to_long(self.fingerprint())
-
-    def __eq__(self, other):
-        if not isinstance(other, type(self)):
-            return False
-        return self.fingerprint() == other.fingerprint()
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    @classmethod
-    def generate(cls):
-        privkey = DSA.generate(1024)
-        return cls((privkey.key.y, privkey.key.g, privkey.key.p, privkey.key.q,
-                privkey.key.x), private=True)
-
-    @classmethod
-    def parsePayload(cls, data, private=False):
-        p, data = read_mpi(data)
-        q, data = read_mpi(data)
-        g, data = read_mpi(data)
-        y, data = read_mpi(data)
-        if private:
-            x, data = read_mpi(data)
-            return cls((y, g, p, q, x), private=True), data
-        return cls((y, g, p, q), private=False), data
 
 @common.registerkeytype
 class ECDSAKey(common.PK):

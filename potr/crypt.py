@@ -23,8 +23,7 @@ import logging
 import struct
 
 
-from potr.compatcrypto import HASH, SHA256HMAC, SHA256HMAC160 \
-		, Counter, AESCTR, PK, random
+from potr.compatcrypto import HASH, HMAC, HMAC160, Counter, AESCTR, PK, random
 from potr.utils import bytes_to_long, long_to_bytes, pack_mpi, read_mpi
 from potr import proto
 
@@ -346,7 +345,7 @@ class CryptEngine(object):
 				.format(self.sessionkeys, self.ourKeyid, msg.rkeyid,
 						self.theirKeyid, msg.skeyid))
 
-		if msg.mac != SHA256HMAC(sesskey.rcvmac, msg.getMacedData())[:20]:
+		if msg.mac != HMAC(sesskey.rcvmac, msg.getMacedData())[:20]:
 			logger.error('HMACs don\'t match')
 			raise InvalidParameterError
 		sesskey.rcvmacused = True
@@ -422,7 +421,7 @@ class CryptEngine(object):
 
 		self.savedMacKeys = []
 
-		msg.mac = SHA256HMAC(sess.sendmac, msg.getMacedData())
+		msg.mac = HMAC(sess.sendmac, msg.getMacedData())
 		return msg
 
 	def saneKeyIds(self, msg):
@@ -559,8 +558,7 @@ class AuthKeyExchange(object):
 			self.state = STATE_AWAITING_SIG
 
 			self.lastmsg = proto.RevealSig(self.r, aesxb, b'')
-			self.lastmsg.mac = SHA256HMAC160(self.mac_m2,
-					self.lastmsg.getMacedData())
+			self.lastmsg.mac = HMAC160(self.mac_m2, self.lastmsg.getMacedData())
 			return self.lastmsg
 
 		elif self.state == STATE_AWAITING_SIG:
@@ -587,7 +585,7 @@ class AuthKeyExchange(object):
 		self.gy = ECDH.parse_serialized_pubKey(gxmpi)
 		self.createAuthKeys()
 
-		if msg.mac != SHA256HMAC160(self.mac_m2, msg.getMacedData()):
+		if msg.mac != HMAC160(self.mac_m2, msg.getMacedData()):
 			logger.error('HMACs don\'t match')
 			logger.info('mac=%r, mac_m2=%r, data=%r', msg.mac, self.mac_m2,
 					msg.getMacedData())
@@ -605,14 +603,14 @@ class AuthKeyExchange(object):
 
 		cmpmac = struct.pack(b'!I', len(aesxb)) + aesxb
 
-		return proto.Signature(aesxb, SHA256HMAC160(self.mac_m2p, cmpmac))
+		return proto.Signature(aesxb, HMAC160(self.mac_m2p, cmpmac))
 
 	def handleSignature(self, msg):
 		if self.state != STATE_AWAITING_SIG:
 			logger.error('bad state (%d) for Signature', self.state)
 			raise InvalidParameterError
 
-		if msg.mac != SHA256HMAC160(self.mac_m2p, msg.getMacedData()):
+		if msg.mac != HMAC160(self.mac_m2p, msg.getMacedData()):
 			logger.error('HMACs don\'t match')
 			raise InvalidParameterError
 
@@ -647,7 +645,7 @@ class AuthKeyExchange(object):
 		buf += ECDH.serialize_pubKey(self.gy)
 		buf += pubkey
 		buf += struct.pack(b'!I', self.ourKeyid)
-		MBsigned = self.privkey.sign(SHA256HMAC(mackey, buf))
+		MBsigned = self.privkey.sign(HMAC(mackey, buf))
 	
 		logging.debug("Signature : {}".format( ':'.join(x.encode('hex') for x in MBsigned) ))
 		
@@ -681,7 +679,7 @@ class AuthKeyExchange(object):
 		authbuf += self.theirPubkey.serializePublicKey()
 		authbuf += struct.pack(b'!I', receivedKeyid)
 
-		if self.theirPubkey.verify(SHA256HMAC(mackey, authbuf), auth) is False:
+		if self.theirPubkey.verify(HMAC(mackey, authbuf), auth) is False:
 			raise InvalidParameterError
 		self.theirKeyid = receivedKeyid
 
