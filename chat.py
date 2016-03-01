@@ -3,7 +3,6 @@
 
 import potr, socket, select, sys, argparse
 import logging
-from IPy import IP
 
 MMS = 4096
 EXIT_SUCCESS = 0
@@ -61,18 +60,30 @@ class Chatter(object):
 		self.account = MyAccount('me')
 		self.context = MyContext(self.account, MyAccount('other'))
 		
-	def prompt(self):
+	def prompt(self, old_user_input):
+	
 		sys.stdout.write('>> ')
+		
+		if old_user_input is not None:
+			for fd in [sys.stdout, sys.stdin]:
+				fd.write(old_user_input)
+		
 		sys.stdout.flush()
 	
 	def print_line(self, line):
-		sys.stdout.write('\r{}'.format(line))
-		self.prompt()
+
+		# TODO Change
+		user_input = sys.stdin.read(MMS)
+		
+		if line is not None:
+			sys.stdout.write('\r{}'.format(line))
+			self.prompt(user_input)
 			
 	def handle_socket(self):
 		
 		socket_list = [sys.stdin, self.socket]
-		self.prompt()
+		
+		self.prompt(None)
 		
 		while True:	 
 		
@@ -102,7 +113,7 @@ class Chatter(object):
 						sys.exit(EXIT_SUCCESS)
 			
 					self.socket.send(self.context.sendMessage(1, msg))
-					self.prompt()
+					self.prompt(None)
 					
 class Client(Chatter):
 
@@ -183,13 +194,7 @@ if __name__ == "__main__":
     # Client	
    	elif args.IP is not None and len(args.IP) == 1:
    	
-   		host = args.IP[0]
-   		try:
-			IP(host)
-		except:
-			print "Erreur dans le format de l'adresse IP"
-			sys.exit(EXIT_ERROR)
-		
+   		host = args.IP[0]		
    		impl = Client(host, port)
    		logFile = './logsClient.log'
    	
