@@ -1,10 +1,13 @@
 #!/usr/bin/python
 # -*-coding:Utf-8 -*
 
-import potr, socket, select, sys
+import potr, socket, select, sys, argparse
 import logging
+from IPy import IP
 
 MMS = 4096
+EXIT_SUCCESS = 0
+EXIT_ERROR = 1
 
 class MyAccount(potr.context.Account):
 	
@@ -25,10 +28,9 @@ class MyContext(potr.context.Context):
 		self.socket = None
 
 	def getPolicy(self, key):
-		return True # TODO
+		return True
 
 	def inject(self, msg, appdata=None):
-		#print "From {} to {} : {}".format(self.user.jid, self.peer.jid, msg)
 		self.socket.send(msg)
 
 	def setState(self, newstate):
@@ -48,7 +50,6 @@ class MyContext(potr.context.Context):
 		elif(newstate == potr.context.STATE_FINISHED):
 			p_newstate = "STATE_FINISHED"
 
-		#print "{} : {} -> {}".format(self.user.name, p_selfstate, p_newstate)
 		super(MyContext, self).setState(newstate)
 
 class Chatter(object):
@@ -86,7 +87,7 @@ class Chatter(object):
 					if not data :
 						print '\nDisconnected'
 						self.socket.close()
-						sys.exit()
+						sys.exit(EXIT_SUCCESS)
 					else :
 						clear = self.context.receiveMessage(data)[0]
 						self.print_line(clear)
@@ -98,7 +99,7 @@ class Chatter(object):
 					if msg == 'quit\n':
 						print 'Disconnecting'
 						self.socket.close()
-						sys.exit()
+						sys.exit(EXIT_SUCCESS)
 			
 					self.socket.send(self.context.sendMessage(1, msg))
 					self.prompt()
@@ -107,6 +108,9 @@ class Client(Chatter):
 
 	def __init__(self, host, port):
 		
+		if host is None or port is None:
+			raise ValueError("Erreur dans la spécification des paramètres")
+			
 		super(Client, self).__init__()
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.socket.settimeout(2)
@@ -118,7 +122,7 @@ class Client(Chatter):
 			self.socket.connect((host, port))
 		except :
 			print 'Unable to connect'
-			sys.exit()
+			sys.exit(EXIT_ERROR)
 		 
 		print 'Connected to remote host. Start sending messages'
 		
@@ -131,6 +135,9 @@ class Server(Chatter):
 
 	def __init__(self, port):
 	
+		if port is None:
+			raise ValueError("Erreur dans la spécification des paramètres")
+			
 		super(Server, self).__init__()
 		self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -147,25 +154,53 @@ class Server(Chatter):
 # Main
 if __name__ == "__main__":
 
-	if(len(sys.argv) < 3) :
-		print 'Usage : python chat3.py hostname port'
-		sys.exit()
-                    
-	host = sys.argv[1]
-	port = int(sys.argv[2])
+	# Définition du parser d'arguments
+	parser = argparse.ArgumentParser()
 	
-	if host.lower() == 'listen':
+	group = parser.add_mutually_exclusive_group()
+	group.add_argument("-c", "--connect", dest="IP", nargs=1, help="Établit une connexion à l'adresse IP spécifiée en paramètre")
+	group.add_argument("-l", "--listen", help="Met en écoute le client sur le port spécifié en paramètre", action="store_true")
 	
-		logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(levelname)s %(message)s',
-                    filename='./logsServer.log',
-                    filemode='w')
-		Server(port).start()
+	parser.add_argument("port", type=int, help="Le port sur lequel écouter/se connecter")
 	
-	else:
+	# Récupération des arguments
+	args = parser.parse_args()
+
+	port = args.port
+	if port < 0 or port > 65535:
+		print "Erreur dans la valeur du port spécifié"
+		sys.exit(EXIT_ERROR)
+	
+	impl = None
+	logFile = None
+	
+	# Serveur
+	if args.listen == True:
+    
+		impl = Server(port)
+		logFile = './logsServer.log'
+    
+    # Client	
+   	elif args.IP is not None and len(args.IP) == 1:
+   	
+   		host = args.IP[0]
+   		try:
+			IP(host)
+		except:
+			print "Erreur dans le format de l'adresse IP"
+			sys.exit(EXIT_ERROR)
 		
-		logging.basicConfig(level=logging.DEBUG,
-                    format='%(asctime)s %(levelname)s %(message)s',
-                    filename='./logsClient.log',
-                    filemode='w')
-		Client(host, port).start()
+   		impl = Client(host, port)
+   		logFile = './logsClient.log'
+   	
+   	else:
+   		print "Erreur dans les paramètres spécifiés"
+   		sys.exit(EXIT_ERROR)
+   		
+   	# Démarrage du programme
+	logging.basicConfig(level=logging.DEBUG,
+                format='%(asctime)s %(levelname)s %(message)s',
+                filename=logFile,
+                filemode='w')
+		
+	impl.start()

@@ -1,4 +1,5 @@
-Utiliser argparse pour la récupération des commentaires
+Supprimer les vecteurs de test dans le dossier python-sha3 ? => Voir si ça ne casse pas le build
 
-Utiliser une fonction de hash pour générer le secret commun pour ECDH
-Changer le test ECDH
+Corriger les petits problèmes dans le chat
+
+Ajouter compatibilité Windows (supression de select)
