@@ -1,0 +1,7 @@
+Pour lancer le programme en mode serveur :
+
+	python ./chat.py -l PORT
+	
+Pour lancer le programme en mode client :
+
+	python ./chat.py -c IP PORT

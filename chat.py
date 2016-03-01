@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*-coding:Utf-8 -*
 
-import potr, socket, select, sys, argparse
+import potr, socket, select, sys, argparse, re
 import logging
 
 MMS = 4096
@@ -60,30 +60,19 @@ class Chatter(object):
 		self.account = MyAccount('me')
 		self.context = MyContext(self.account, MyAccount('other'))
 		
-	def prompt(self, old_user_input):
-	
+	def prompt(self):
 		sys.stdout.write('>> ')
-		
-		if old_user_input is not None:
-			for fd in [sys.stdout, sys.stdin]:
-				fd.write(old_user_input)
-		
 		sys.stdout.flush()
 	
 	def print_line(self, line):
-
-		# TODO Change
-		user_input = sys.stdin.read(MMS)
-		
 		if line is not None:
 			sys.stdout.write('\r{}'.format(line))
-			self.prompt(user_input)
+			self.prompt()
 			
 	def handle_socket(self):
 		
 		socket_list = [sys.stdin, self.socket]
-		
-		self.prompt(None)
+		self.prompt()
 		
 		while True:	 
 		
@@ -113,29 +102,32 @@ class Chatter(object):
 						sys.exit(EXIT_SUCCESS)
 			
 					self.socket.send(self.context.sendMessage(1, msg))
-					self.prompt(None)
+					self.prompt()
 					
 class Client(Chatter):
 
-	def __init__(self, host, port):
+	def __init__(self, ip, port):
 		
-		if host is None or port is None:
+		if ip is None or port is None:
 			raise ValueError("Erreur dans la spécification des paramètres")
 			
 		super(Client, self).__init__()
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.socket.settimeout(2)
+		
+		self._ip = ip
+		self._port = port
 
 	def start(self):
 	
 		# Connexion
 		try :
-			self.socket.connect((host, port))
+			self.socket.connect((self._ip, self._port))
 		except :
 			print 'Unable to connect'
 			sys.exit(EXIT_ERROR)
 		 
-		print 'Connected to remote host. Start sending messages'
+		print 'Connected to remote ip. Start sending messages'
 		
 		self.context.socket = self.socket
 		self.socket.send('?OTRv2?')
@@ -158,6 +150,7 @@ class Server(Chatter):
 	def start(self):
 
 		self.socket, x = self.s.accept()
+		print "Client connected. Start sending messages"
 		self.context.socket = self.socket
 		
 		self.handle_socket()
@@ -194,8 +187,12 @@ if __name__ == "__main__":
     # Client	
    	elif args.IP is not None and len(args.IP) == 1:
    	
-   		host = args.IP[0]		
-   		impl = Client(host, port)
+   		ip = args.IP[0]
+   		if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", ip):
+			print "Erreur dans le format de l'adresse IP"
+			sys.exit(EXIT_ERROR)
+		
+   		impl = Client(ip, port)
    		logFile = './logsClient.log'
    	
    	else:
