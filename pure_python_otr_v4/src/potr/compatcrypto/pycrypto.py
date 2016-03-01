@@ -30,7 +30,7 @@ from Crypto.Hash import SHA512 as _SHA512
 from Crypto.Random import random
 
 from potr.compatcrypto import common
-from potr.utils import read_mpi, bytes_to_long, long_to_bytes, read_data
+from potr.utils import pack_mpi, read_mpi, bytes_to_long, long_to_bytes, read_data
 
 from binascii import hexlify
 from ecdsa import SigningKey, VerifyingKey, NIST384p
