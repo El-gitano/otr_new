@@ -1,0 +1,3 @@
+Pour installer potr_v4 il faut exécuter la commande suivante (droits administateurs requis) : 
+
+	python ./setup.py install

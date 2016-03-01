@@ -1,0 +1,56 @@
+1.0.1 (2014-10-16)
+ - removed internal username from messages to peers
+ - clear revealed macs
+ - don't drop leading zero bits from AES keys
+
+1.0.0 (2013-10-02)
+ - gotr: moved to separate reppository / source distribution
+ - tools: convertkey shebang changed to non-version-specific python
+
+1.0.0beta7 (2013-09-22)
+ - potr: work towards supporting OTRv3. no instance tag support yet.
+ - potr: fixed some MPI paddings
+ - potr: various message encoding fixes / unification
+ - potr: general cleanup
+ - gotr: handle exceptions, allow for some more debugging
+ - this will eventually become a 1.0.0 release when I get some positive feedback
+
+1.0.0beta6 (2012-10-17)
+ - potr: max message size can be set per context/message
+ - gotr: handle html messages
+ - gotr: install plugin from setup.py if a gajim directory was found
+ - gotr: provide option to copy fingerprints to clipboard
+ - gotr: use gajim logging system
+ - fix: don't send context refreshing request in an encrypted packet
+ - fix: AKEs were not being fragmented
+ - minor bugfixes
+
+1.0.0beta5 (2012-03-29)
+ - gotr: bugfix: plugin broke gajim's ressource discovery (issue #7)
+ - gotr: store the fingerprints per user, not per ressource (issue #6)
+ - gotr: add activate() (merge with hg.gajim.org, issue #5)
+ - gotr: bugfix in smp/disconnect handling
+ -> API changes:
+   - added trustName field to Context, allows applications to specify custom
+     names for the fingerprint storage.
+     (eg. use jid while context uses jid+ressource)
+   - non-OTR messages raise NotOTRMessage
+
+1.0.0beta4 (2012-03-10)
+ - py3k support
+ - dropped soome debugging
+ - a new test suite
+ - added abstraction between the crypto lib 
+ -> API changes:
+   - this requires a different handling of PK objects - they cannot be
+     pickled anymore. Use parsePrivateKey and serializePrivateKey methods
+     and write their contents to files.
+
+1.0.0beta3 (unreleased)
+ - don't always generate a privkey if none available
+
+1.0.0beta2 (2011-08-30)
+ - python 2.6 compatibility
+
+1.0.0beta1 (2011-06-10)
+ - first beta release

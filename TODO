@@ -1,0 +1,4 @@
+Utiliser argparse pour la récupération des commentaires
+
+Utiliser une fonction de hash pour générer le secret commun pour ECDH
+Changer le test ECDH

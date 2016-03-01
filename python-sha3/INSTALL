@@ -1,0 +1,4 @@
+Pour installer python-sha3, il faut utiliser les commandes suivantes (droits administratuers requis):
+
+	BUILD : python ./setup.py build
+	INSTALL : python ./setup.py install

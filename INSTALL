@@ -1,0 +1,7 @@
+Pour l'installation voici les commandes suivantes (à exécuter avec les droits administrateurs) :
+
+	Installation de pyECDSA : pip install ecdsa
+	Suivre les instructions INSTALL présentes dans les dossiers et dans l'ordre suivant :
+	
+		- python-sha3
+		- pure_python_otr_v4

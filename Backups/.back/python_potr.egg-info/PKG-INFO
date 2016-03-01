@@ -1,0 +1,35 @@
+Metadata-Version: 1.1
+Name: python-potr
+Version: 1.0.1
+Summary: pure Python Off-The-Record encryption
+Home-page: http://python-otr.pentabarf.de
+Author: Kjell Braden
+Author-email: afflux@pentabarf.de
+License: LGPLv3+
+Description: Python OTR
+        ==========
+        This is a pure Python OTR implementation; it does not bind to libotr.
+        
+        Install the potr Python module:
+        
+            sudo python setup.py install
+        
+        **Dependencies**: pycrypto >= 2.1 (see `dlitz/pycrypto <https://github.com/dlitz/pycrypto>`_)
+        
+        Usage Notes
+        ===========
+        This module uses pycrypto's RNG. If you use this package in your application and your application
+        uses ``os.fork()``, make sure to call ``Crypto.Random.atfork()`` in both the parent and the child process.
+        
+        Reporting bugs
+        ==============
+        Please read the `FAQ <https://github.com/afflux/pure-python-otr/wiki>`_ before submitting your
+        issue to the `tracker <https://github.com/afflux/pure-python-otr/issues>`_.
+Platform: any
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: Communications :: Chat
+Classifier: Topic :: Security :: Cryptography
