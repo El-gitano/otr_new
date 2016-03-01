@@ -142,6 +142,8 @@ class EllipticCurve:
 
 		return x % p
 
+print 'Début des tests sur l\'implémentation de la courbe elliptique {}'.format(CURVE_NAME)
+
 curve = EllipticCurve(CURVE_NAME, p=0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f, a=0, b=7,	g=(0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798, 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8), n=0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141, h=1)
 
 # Test vecteurs hxBitcoin

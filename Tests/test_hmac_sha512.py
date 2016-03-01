@@ -4,6 +4,8 @@
 from potr.compatcrypto import HMAC
 from binascii import hexlify, unhexlify
 
+print 'Début des tests sur la fonction HMAC et HMAC_SHA512'
+
 # Test short messages
 with open('./hmac_sha512/datas.txt') as f_datas:
 	with open('./hmac_sha512/keys.txt') as f_keys:

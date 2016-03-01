@@ -6,6 +6,8 @@ import sha3
 from binascii import hexlify, unhexlify
 from potr.compatcrypto import HASH
 
+print 'Début des tests sur la fonction HASH et de SHA3'
+
 # Test short messages
 with open('./sha3/shortmsg.txt') as f_msg:
     with open('./sha3/shortmsg_fingerprint.txt') as f_ref:
